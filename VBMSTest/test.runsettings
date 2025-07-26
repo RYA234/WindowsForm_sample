@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <RunConfiguration>
+    <!-- テスト実行時のターゲットプラットフォーム（x86/x64/AnyCPU） -->
+    <TargetPlatform>x64</TargetPlatform>
+    <!-- テスト実行時のターゲットフレームワーク（例: .NETFramework,Version=v4.8） -->
+    <TargetFrameworkVersion>.NETFramework,Version=v4.8</TargetFrameworkVersion>
+    <!-- テスト結果の詳細レベル（例: Detailed, Minimal） -->
+    <ResultsDirectory>TestResults</ResultsDirectory>
+  </RunConfiguration>
+</RunSettings>
