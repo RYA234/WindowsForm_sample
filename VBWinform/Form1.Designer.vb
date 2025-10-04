@@ -24,6 +24,8 @@ Partial Class Form1
     Private Sub InitializeComponent()
         Me.Button1 = New System.Windows.Forms.Button()
         Me.TextBox1 = New System.Windows.Forms.TextBox()
+        Me.Label1 = New System.Windows.Forms.Label()
+        Me.CountText = New System.Windows.Forms.TextBox()
         Me.SuspendLayout()
         '
         'Button1
@@ -42,11 +44,29 @@ Partial Class Form1
         Me.TextBox1.Size = New System.Drawing.Size(100, 19)
         Me.TextBox1.TabIndex = 1
         '
+        'Label1
+        '
+        Me.Label1.AutoSize = True
+        Me.Label1.Location = New System.Drawing.Point(90, 99)
+        Me.Label1.Name = "Label1"
+        Me.Label1.Size = New System.Drawing.Size(37, 12)
+        Me.Label1.TabIndex = 2
+        Me.Label1.Text = "Count:"
+        '
+        'CountText
+        '
+        Me.CountText.Location = New System.Drawing.Point(133, 96)
+        Me.CountText.Name = "CountText"
+        Me.CountText.Size = New System.Drawing.Size(100, 19)
+        Me.CountText.TabIndex = 3
+        '
         'Form1
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 12.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(800, 450)
+        Me.Controls.Add(Me.CountText)
+        Me.Controls.Add(Me.Label1)
         Me.Controls.Add(Me.TextBox1)
         Me.Controls.Add(Me.Button1)
         Me.Name = "Form1"
@@ -58,4 +78,6 @@ Partial Class Form1
 
     Friend WithEvents Button1 As Button
     Friend WithEvents TextBox1 As TextBox
+    Friend WithEvents Label1 As Label
+    Friend WithEvents CountText As TextBox
 End Class
