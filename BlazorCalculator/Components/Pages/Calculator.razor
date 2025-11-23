@@ -1,0 +1,44 @@
+@page "/"
+@inject CalculatorService CalculatorService
+@implements IDisposable
+
+<div class="calculator-container">
+    <div class="display">
+        <input type="text" value="@CalculatorService.DisplayText" readonly id="DisplayTextBox" aria-label="DisplayTextBox" title="DisplayTextBox" />
+    </div>
+    <div class="buttons-grid">
+        <button class="btn-clear" @onclick="CalculatorService.Clear" id="ButtonClear" aria-label="ButtonClear" name="ButtonClear">C</button>
+        <button @onclick="() => CalculatorService.SetOperation('/')" class="btn-operator" id="ButtonDivide" aria-label="ButtonDivide" name="ButtonDivide">/</button>
+        <button @onclick="() => CalculatorService.SetOperation('*')" class="btn-operator" id="ButtonMultiply" aria-label="ButtonMultiply" name="ButtonMultiply">*</button>
+        <button @onclick="() => CalculatorService.SetOperation('-')" class="btn-operator" id="ButtonSubtract" aria-label="ButtonSubtract" name="ButtonSubtract">-</button>
+
+        <button @onclick='() => CalculatorService.AppendNumber("7")' id="Button7" aria-label="Button7" name="Button7">7</button>
+        <button @onclick='() => CalculatorService.AppendNumber("8")' id="Button8" aria-label="Button8" name="Button8">8</button>
+        <button @onclick='() => CalculatorService.AppendNumber("9")' id="Button9" aria-label="Button9" name="Button9">9</button>
+        <button @onclick="() => CalculatorService.SetOperation('+')" class="btn-plus" id="ButtonAdd" aria-label="ButtonAdd" name="ButtonAdd">+</button>
+
+        <button @onclick='() => CalculatorService.AppendNumber("4")' id="Button4" aria-label="Button4" name="Button4">4</button>
+        <button @onclick='() => CalculatorService.AppendNumber("5")' id="Button5" aria-label="Button5" name="Button5">5</button>
+        <button @onclick='() => CalculatorService.AppendNumber("6")' id="Button6" aria-label="Button6" name="Button6">6</button>
+
+        <button @onclick='() => CalculatorService.AppendNumber("1")' id="Button1" aria-label="Button1" name="Button1">1</button>
+        <button @onclick='() => CalculatorService.AppendNumber("2")' id="Button2" aria-label="Button2" name="Button2">2</button>
+        <button @onclick='() => CalculatorService.AppendNumber("3")' id="Button3" aria-label="Button3" name="Button3">3</button>
+        <button class="btn-equals" @onclick="CalculatorService.Calculate" id="ButtonEquals" aria-label="ButtonEquals" name="ButtonEquals">=</button>
+
+        <button @onclick='() => CalculatorService.AppendNumber("0")' style="grid-column: span 2;" id="Button0" aria-label="Button0" name="Button0">0</button>
+        <button @onclick="CalculatorService.AppendDecimal" id="ButtonDecimal" aria-label="ButtonDecimal" name="ButtonDecimal">.</button>
+    </div>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        CalculatorService.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        CalculatorService.OnChange -= StateHasChanged;
+    }
+}
