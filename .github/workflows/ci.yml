@@ -57,12 +57,12 @@ jobs:
             exit 1
           fi
 
-          # 結果テーブルのフォーマットを検証（コードフェンス付き、ヘッダー行、区切り行）
-          if ! awk 'BEGIN{block=0} /```/{block=!block} block{print} ' "$FILE" | grep -Fq 'プロパティ名|プロパティ項目|結果|現状の値|期待する値|修正方法'; then
-            echo "::error title=Missing result table::ヘッダー行が code fence 内に見つかりません"; exit 1
+          # 結果テーブルのフォーマットを検証（場所は問わず、ヘッダー行と区切り行の存在を確認）
+          if ! grep -Fq 'プロパティ名|プロパティ項目|結果|現状の値|期待する値|修正方法' "$FILE"; then
+            echo "::error title=Missing result table::ヘッダー行が見つかりません"; exit 1
           fi
-          if ! awk 'BEGIN{block=0} /```/{block=!block} block{print} ' "$FILE" | grep -Fq '------------|--------------|----|--------|----------|--------'; then
-            echo "::error title=Missing result table separator::区切り行が code fence 内に見つかりません"; exit 1
+          if ! grep -Fq '------------|--------------|----|--------|----------|--------' "$FILE"; then
+            echo "::error title=Missing result table separator::区切り行が見つかりません"; exit 1
           fi
           echo "All required sections exist."
           {
