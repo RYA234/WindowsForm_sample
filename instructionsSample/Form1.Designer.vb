@@ -2,7 +2,7 @@
 Partial Class Form1
     Inherits System.Windows.Forms.Form
 
-    'フォームがコンポーネントの一覧をクリーンアップするために dispose をオーバーライドします。
+    'フォームがコンポーネントの一覧を22クリーンアップするために dispose をオーバーライドします。
     <System.Diagnostics.DebuggerNonUserCode()> _
     Protected Overrides Sub Dispose(ByVal disposing As Boolean)
         Try
