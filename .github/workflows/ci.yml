@@ -1,0 +1,52 @@
+name: Copilot Instructions Check
+
+on:
+  push:
+    branches:
+      - '**'
+    paths:
+      - '.github/copilot-instructions.md'
+      - '.github/workflows/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate .github/copilot-instructions.md
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE=".github/copilot-instructions.md"
+          if [[ ! -f "$FILE" ]]; then
+            echo "::error title=Missing file::$FILE not found"; exit 1
+          fi
+          if [[ ! -s "$FILE" ]]; then
+            echo "::error title=Empty file::$FILE is empty"; exit 1
+          fi
+          missing=()
+          mapfile -t req << 'EOF'
+          # UI Propety
+          ## テキストボックス　TextBox
+          ## DateTimePicker
+          # 結果の連絡について
+          # 修正方法について
+          EOF
+          for h in "${req[@]}"; do
+            if ! grep -Fq "$h" "$FILE"; then
+              missing+=("$h")
+            fi
+          done
+          if (( ${#missing[@]} > 0 )); then
+            printf "::error title=Missing sections::%s\n" "$(IFS=", "; echo "${missing[*]}")"
+            exit 1
+          fi
+          echo "All required sections exist."
+          {
+            echo "### Copilot Instructions Check"
+            echo "- File: $FILE"
+            echo "- Status: OK"
+          } >> "$GITHUB_STEP_SUMMARY"
