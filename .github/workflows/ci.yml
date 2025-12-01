@@ -7,9 +7,21 @@ on:
     paths:
       - '.github/copilot-instructions.md'
       - '.github/workflows/**'
+  pull_request:
+    branches:
+      - '**'
+    paths:
+      - '.github/copilot-instructions.md'
+      - '.github/workflows/**'
+  workflow_dispatch:
 
 jobs:
   validate:
+    permissions:
+      contents: read
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -44,9 +56,24 @@ jobs:
             printf "::error title=Missing sections::%s\n" "$(IFS=", "; echo "${missing[*]}")"
             exit 1
           fi
+
+          # 結果テーブルのフォーマットを検証（コードフェンス付き、ヘッダー行、区切り行）
+          if ! awk 'BEGIN{block=0} /```/{block=!block} block{print} ' "$FILE" | grep -Fq 'プロパティ名|プロパティ項目|結果|現状の値|期待する値|修正方法'; then
+            echo "::error title=Missing result table::ヘッダー行が code fence 内に見つかりません"; exit 1
+          fi
+          if ! awk 'BEGIN{block=0} /```/{block=!block} block{print} ' "$FILE" | grep -Fq '------------|--------------|----|--------|----------|--------'; then
+            echo "::error title=Missing result table separator::区切り行が code fence 内に見つかりません"; exit 1
+          fi
           echo "All required sections exist."
           {
             echo "### Copilot Instructions Check"
             echo "- File: $FILE"
             echo "- Status: OK"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload instructions as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: copilot-instructions
+          path: .github/copilot-instructions.md
