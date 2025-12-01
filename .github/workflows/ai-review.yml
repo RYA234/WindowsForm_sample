@@ -37,12 +37,21 @@ jobs:
             const prompt = `以下はPRで変更されたファイルの差分です。短く的確に日本語でレビューし、改善提案を箇条書きで示してください。意図、漏れ、あいまいさ、表記ゆれ、CIの堅牢性（失敗時の診断性）を特に確認してください。必要なら具体的な修正例を提示してください。\n\n` + summaries;
             const truncated = prompt.length > 120000 ? prompt.slice(0, 120000) + '\n\n...（一部省略）' : prompt;
             fs.writeFileSync('review_input.txt', truncated);
+            const filesList = files.map(f => `${f.filename} (${f.status})`).join('\n');
+            fs.writeFileSync('files_summary.txt', filesList || '(no files)');
+            core.setOutput('files_count', (files?.length ?? 0).toString());
             core.setOutput('pull_number', pull_number.toString());
 
       - name: Show input size
         run: |
           BYTES=$(wc -c < review_input.txt || echo 0)
           echo "::notice::review_input size(bytes)=${BYTES}"
+
+      - name: Show changed files
+        run: |
+          echo "::group::Changed files"
+          test -f files_summary.txt && cat files_summary.txt || echo "(no files)"
+          echo "::endgroup::"
 
       - name: AI review via Gemini
         # Google AI Studio(Generative Language API) の API Key を使用
@@ -63,14 +72,23 @@ jobs:
             contents: [{ role: "user", parts: [{ text: $text }]}],
             generationConfig: { temperature: 0.2 }
           }')
-          curl -sS -X POST "https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GOOGLE_API_KEY}" \
+          HTTP_CODE=$(curl -sS -w '%{http_code}' -X POST "https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GOOGLE_API_KEY}" \
             -H "Content-Type: application/json" \
             -d "$BODY" \
-            -o response.json
+            -o response.json)
 
           # 返却テキストのみ抽出（ログを簡潔化）。失敗時は簡潔なメッセージにフォールバック。
           jq -r '(.candidates[0].content.parts[0].text // .candidates[0].content // .promptFeedback // .error.message // "レビュー生成失敗" )' response.json > review.md
-          echo '::notice::Gemini response parsed'
+          FINISH=$(jq -r '.candidates[0].finishReason // .candidates[0].finish_reason // "UNKNOWN"' response.json)
+          BLOCKED=$(jq -r '.promptFeedback.blockReason // ""' response.json)
+          OUT_LEN=$(wc -c < review.md || echo 0)
+          PREVIEW=$(head -c 200 review.md | tr '\n' ' ')
+
+          echo '::group::AI Review Summary'
+          echo "HTTP=${HTTP_CODE} MODEL=${GEMINI_MODEL} FINISH=${FINISH} BLOCK=${BLOCKED}"
+          echo "OUTPUT_BYTES=${OUT_LEN}"
+          echo "PREVIEW: ${PREVIEW}..."
+          echo '::endgroup::'
 
       - name: Skip (no AI credentials found)
         if: ${{ !secrets.GOOGLE_API_KEY }}
