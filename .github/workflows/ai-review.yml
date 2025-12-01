@@ -34,7 +34,25 @@ jobs:
             });
             const summaries = files.map(f => `# ${f.filename} (status: ${f.status})\n\n\n${f.patch || ''}`).join('\n\n---\n\n');
             const fs = require('fs');
-            const prompt = `以下はPRで変更されたファイルの差分です。短く的確に日本語でレビューし、改善提案を箇条書きで示してください。意図、漏れ、あいまいさ、表記ゆれ、CIの堅牢性（失敗時の診断性）を特に確認してください。必要なら具体的な修正例を提示してください。\n\n` + summaries;
+            const prompt = `以下はPRの差分です。次のフォーマットで日本語レビューを生成してください。\n\n` +
+            `# AI レビュー\n` +
+            `- 結論: OK | 要修正 | 注意 のいずれかを先頭に記載\n\n` +
+            `## 良い点\n` +
+            `- 最大5項目で、具体的に（何が・なぜ良いか）\n\n` +
+            `## 改善点（優先度付き）\n` +
+            `- [高/中/低] 問題: … / 影響: … / 根拠: … / 対応例:\n` +
+            "```diff\n- 悪い例\n+ 良い例\n```\n\n" +
+            `## 即時の修正提案\n` +
+            `- 実際の修正スニペットを提示（Rationaleを1行で）\n\n` +
+            `## チェックリスト\n` +
+            `- [ ] CIトリガー/パスは意図通り\n` +
+            `- [ ] シークレット漏洩なし（フォークPR対策済）\n` +
+            `- [ ] ログは過不足なし（機微情報非出力）\n` +
+            `- [ ] 失敗時アーティファクトで診断可能\n` +
+            `- [ ] セキュリティ上の危険な実行（checkoutなど）無し\n\n` +
+            `## 最終評価\n` +
+            `評価: OK | 要修正 のいずれかを単独行で\n\n` +
+            `--- 差分 ---\n\n` + summaries;
             const truncated = prompt.length > 120000 ? prompt.slice(0, 120000) + '\n\n...（一部省略）' : prompt;
             fs.writeFileSync('review_input.txt', truncated);
             const filesList = files.map(f => `${f.filename} (${f.status})`).join('\n');
@@ -95,6 +113,16 @@ jobs:
         run: |
           echo "No Gemini API key found. Skipping AI review." > review.md
 
+      - name: Build final PR comment
+        run: |
+          {
+            echo '## 変更ファイル';
+            test -f files_summary.txt && sed 's/^/- /' files_summary.txt || echo '(no files)';
+            echo;
+            echo '## AI レビュー';
+            cat review.md;
+          } > comment.md
+
       - name: Upload debug artifacts (on failure)
         if: failure()
         uses: actions/upload-artifact@v4
@@ -109,7 +137,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const body = fs.readFileSync('review.md','utf8');
+            const body = fs.readFileSync('comment.md','utf8');
             const pull_number = (context.payload.pull_request && context.payload.pull_request.number) || context.issue.number;
             await github.rest.issues.createComment({
               owner: context.repo.owner,
