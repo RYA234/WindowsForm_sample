@@ -1,0 +1,87 @@
+name: AI PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+    branches:
+      - '**'
+    paths:
+      - '.github/copilot-instructions.md'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Collect PR changes (files + patches)
+        id: collect
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request || context.payload.issue?.pull_request;
+            const pull_number = pr ? (context.payload.pull_request?.number || context.issue.number) : context.issue.number;
+            const {data: files} = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number,
+              per_page: 100
+            });
+            const summaries = files.map(f => `# ${f.filename} (status: ${f.status})\n\n\n${f.patch || ''}`).join('\n\n---\n\n');
+            const fs = require('fs');
+            const prompt = `以下はPRで変更されたファイルの差分です。短く的確に日本語でレビューし、改善提案を箇条書きで示してください。意図、漏れ、あいまいさ、表記ゆれ、CIの堅牢性（失敗時の診断性）を特に確認してください。必要なら具体的な修正例を提示してください。\n\n` + summaries;
+            const truncated = prompt.length > 120000 ? prompt.slice(0, 120000) + '\n\n...（一部省略）' : prompt;
+            fs.writeFileSync('review_input.txt', truncated);
+            core.setOutput('pull_number', pull_number.toString());
+
+      - name: Show input size
+        run: |
+          wc -c review_input.txt || true
+
+      - name: AI review via Gemini
+        # Google AI Studio(Generative Language API) の API Key を使用
+        if: ${{ secrets.GOOGLE_API_KEY != '' }}
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GEMINI_MODEL: ${{ secrets.GEMINI_MODEL || 'gemini-1.5-pro-latest' }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y && sudo apt-get install -y jq
+          jq --version
+          echo 'Calling Gemini...'
+          BODY=$(jq -n --arg text "$(sed 's/\\/\\\\/g; s/\"/\\\"/g' review_input.txt | tr -d '\r')" '{
+            contents: [{ role: "user", parts: [{ text: $text }]}],
+            generationConfig: { temperature: 0.2 }
+          }')
+          curl -sS -X POST "https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GOOGLE_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "$BODY" | tee response.json >/dev/null
+          jq -r '.candidates[0].content.parts[0].text // .candidates[0].content // "レビュー生成失敗"' response.json > review.md
+
+      - name: Skip (no AI credentials found)
+        if: ${{ secrets.GOOGLE_API_KEY == '' }}
+        run: |
+          echo "No Gemini API key found. Skipping AI review." > review.md
+
+      - name: Post PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('review.md','utf8');
+            const pull_number = (context.payload.pull_request && context.payload.pull_request.number) || context.issue.number;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pull_number,
+              body
+            });
+          result-encoding: string
+          
