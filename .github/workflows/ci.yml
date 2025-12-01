@@ -58,10 +58,11 @@ jobs:
           fi
 
           # 結果テーブルのフォーマットを検証（場所は問わず、ヘッダー行と区切り行の存在を確認）
-          if ! grep -Fq 'プロパティ名|プロパティ項目|結果|現状の値|期待する値|修正方法' "$FILE"; then
+          # パイプの前後の空白や全角スペース差異を許容した正規表現で検証
+          if ! grep -Eaq 'プロパティ名\s*\|\s*プロパティ項目\s*\|\s*結果\s*\|\s*現状の値\s*\|\s*期待する値\s*\|\s*修正方法' "$FILE"; then
             echo "::error title=Missing result table::ヘッダー行が見つかりません"; exit 1
           fi
-          if ! grep -Fq '------------|--------------|----|--------|----------|--------' "$FILE"; then
+          if ! grep -Eaq '^[-\s|]{3,}\|[-\s|]{3,}(\|[-\s|]{3,}){4}\s*$' "$FILE"; then
             echo "::error title=Missing result table separator::区切り行が見つかりません"; exit 1
           fi
           echo "All required sections exist."
@@ -70,6 +71,13 @@ jobs:
             echo "- File: $FILE"
             echo "- Status: OK"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Dump instructions on failure
+        if: failure()
+        shell: bash
+        run: |
+          echo '--- .github/copilot-instructions.md (tail) ---'
+          tail -n 100 .github/copilot-instructions.md || true
 
       - name: Upload instructions as artifact
         if: always()
